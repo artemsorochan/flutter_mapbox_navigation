@@ -4,8 +4,8 @@ import android.app.Activity
 import android.content.Context
 import com.eopeter.flutter_mapbox_navigation.utilities.PluginUtilities
 import com.eopeter.flutter_mapbox_navigation.views.EmbeddedNavigationMapView
-import eopeter.flutter_mapbox_navigation.R
-import eopeter.flutter_mapbox_navigation.databinding.NavigationActivityBinding
+import com.eopeter.flutter_mapbox_navigation.R
+import com.eopeter.flutter_mapbox_navigation.databinding.NavigationActivityBinding
 
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.StandardMessageCodec

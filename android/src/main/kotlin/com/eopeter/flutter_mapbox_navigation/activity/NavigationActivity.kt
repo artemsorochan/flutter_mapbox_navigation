@@ -79,8 +79,8 @@ import com.mapbox.navigation.ui.voice.model.SpeechAnnouncement
 import com.mapbox.navigation.ui.voice.model.SpeechError
 import com.mapbox.navigation.ui.voice.model.SpeechValue
 import com.mapbox.navigation.ui.voice.model.SpeechVolume
-import eopeter.flutter_mapbox_navigation.R
-import eopeter.flutter_mapbox_navigation.databinding.NavigationActivityBinding
+import com.eopeter.flutter_mapbox_navigation.R
+import com.eopeter.flutter_mapbox_navigation.databinding.NavigationActivityBinding
 import java.util.Locale
 
 class NavigationActivity : AppCompatActivity() {
