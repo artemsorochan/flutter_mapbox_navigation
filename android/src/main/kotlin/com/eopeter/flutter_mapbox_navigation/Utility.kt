@@ -10,8 +10,8 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat
-import eopeter.flutter_mapbox_navigation.databinding.NavigationActivityBinding
-import eopeter.flutter_mapbox_navigation.R
+import com.eopeter.flutter_mapbox_navigation.databinding.NavigationActivityBinding
+import com.eopeter.flutter_mapbox_navigation.R
 import com.eopeter.flutter_mapbox_navigation.models.MapBoxEvents
 import com.eopeter.flutter_mapbox_navigation.models.MapBoxRouteProgressEvent
 import com.eopeter.flutter_mapbox_navigation.utilities.PluginUtilities
@@ -619,7 +619,7 @@ open class TurnByTurn(ctx: Context, act: Activity, bind: NavigationActivityBindi
     override fun onCancel(arguments: Any?) {
         FlutterMapboxNavigationPlugin.eventSink = null
     }
-    
+
     val context: Context = ctx
     val activity: Activity = act
     val token: String = accessToken
