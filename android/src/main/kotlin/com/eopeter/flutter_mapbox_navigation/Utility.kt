@@ -636,7 +636,7 @@ open class TurnByTurn(ctx: Context, act: Activity, bind: NavigationActivityBindi
     var mapStyleUrlDay: String? = null
     var mapStyleUrlNight: String? = null
     var navigationLanguage = "en"
-    var navigationVoiceUnits = DirectionsCriteria.IMPERIAL
+    var navigationVoiceUnits = DirectionsCriteria.METRIC
     var zoom = 15.0
     var bearing = 0.0
     var tilt = 0.0
