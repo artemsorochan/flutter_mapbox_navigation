@@ -65,7 +65,7 @@ public class FlutterMapboxNavigationPlugin: FlutterPlugin, MethodCallHandler, Ev
     var mapStyleUrlDay: String? = null
     var mapStyleUrlNight: String? = null
     var navigationLanguage = "en"
-    var navigationVoiceUnits = DirectionsCriteria.IMPERIAL
+    var navigationVoiceUnits = DirectionsCriteria.METRIC
     var zoom = 15.0
     var bearing = 0.0
     var tilt = 0.0
@@ -101,11 +101,11 @@ public class FlutterMapboxNavigationPlugin: FlutterPlugin, MethodCallHandler, Ev
       else -> result.notImplemented()
     }
   }
-  
+
   private fun downloadRegionForOfflineRouting(@NonNull call: MethodCall, @NonNull result: MethodChannel.Result){
     result.error("TODO", "Not Implemented in Android","will implement soon")
   }
-  
+
   private fun checkPermissionAndBeginNavigation(@NonNull call: MethodCall, @NonNull result: MethodChannel.Result)
   {
     val arguments = call.arguments as? Map<String, Any>
