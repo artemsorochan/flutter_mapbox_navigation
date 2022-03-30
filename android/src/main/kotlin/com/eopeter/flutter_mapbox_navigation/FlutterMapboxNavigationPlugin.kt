@@ -93,7 +93,7 @@ public class FlutterMapboxNavigationPlugin: FlutterPlugin, MethodCallHandler, Ev
         checkPermissionAndBeginNavigation(call, result)
       }
       "finishNavigation" -> {
-        NavigationLauncher.stopNavigation(currentActivity)
+        currentActivity?.let { NavigationLauncher.stopNavigation(it) }
       }
       "enableOfflineRouting" -> {
         downloadRegionForOfflineRouting(call, result)
@@ -186,7 +186,7 @@ public class FlutterMapboxNavigationPlugin: FlutterPlugin, MethodCallHandler, Ev
 
   private fun beginNavigation(wayPoints: List<Point>)
   {
-      NavigationLauncher.startNavigation(currentActivity, wayPoints);
+    currentActivity?.let { NavigationLauncher.startNavigation(it, wayPoints) };
   }
 
 
