@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application>
-        <activity android:name="com.eopeter.flutter_mapbox_navigation.activity.NavigationActivity" />
+        <activity android:exported="true" android:name="com.eopeter.flutter_mapbox_navigation.activity.NavigationActivity" android:launchMode="singleTop" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|layoutDirection|fontScale|screenLayout|density" android:hardwareAccelerated="true" android:windowSoftInputMode="adjustResize" />
     </application>
 
 </manifest>
