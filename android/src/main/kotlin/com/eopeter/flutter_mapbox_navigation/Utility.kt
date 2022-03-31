@@ -205,9 +205,14 @@ open class TurnByTurn(ctx: Context, act: Activity, bind: NavigationActivityBindi
         val routeArrowOptions = RouteArrowOptions.Builder(activity).build()
         routeArrowView = MapboxRouteArrowView(routeArrowOptions)
 
+        var styleUri = FlutterMapboxNavigationPlugin.mapStyleUrlDay ?: Style.MAPBOX_STREETS
+        if(lightValue <= darkThreshold) {
+            styleUri = FlutterMapboxNavigationPlugin.mapStyleUrlNight ?: Style.MAPBOX_STREETS
+        }
+
         // load map style
         mapboxMap.loadStyleUri(
-            Style.MAPBOX_STREETS
+            styleUri
         ) {
             // add long click listener that search for a route to the clicked destination
             binding.mapView.gestures.addOnMapLongClickListener { point ->
