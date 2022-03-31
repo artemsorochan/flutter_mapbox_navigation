@@ -38,7 +38,7 @@ class MapBoxNavigationView extends StatelessWidget {
           creationParams: options!.toMap(),
           creationParamsCodec: _decoder);
     } else
-      return Container();
+      return Column();
   }
 
   void _onPlatformViewCreated(int id) {
