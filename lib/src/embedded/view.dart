@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import 'controller.dart';
 import '../models/models.dart';
@@ -15,7 +16,6 @@ typedef void OnNavigationViewCreatedCallBack(
 
 ///Embeddable Navigation View.
 class MapBoxNavigationView extends StatelessWidget {
-  static const StandardMessageCodec _decoder = StandardMessageCodec();
   final MapBoxOptions? options;
   final OnNavigationViewCreatedCallBack? onCreated;
   final ValueSetter<RouteEvent>? onRouteEvent;
@@ -23,22 +23,26 @@ class MapBoxNavigationView extends StatelessWidget {
   MapBoxNavigationView(
       {Key? key, this.options, this.onCreated, this.onRouteEvent})
       : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     if (Platform.isAndroid) {
       return AndroidView(
-          viewType: 'FlutterMapboxNavigationView',
-          onPlatformViewCreated: _onPlatformViewCreated,
-          creationParams: options!.toMap(),
-          creationParamsCodec: _decoder);
+        viewType: 'FlutterMapboxNavigationView',
+        layoutDirection: TextDirection.ltr,
+        onPlatformViewCreated: _onPlatformViewCreated,
+        creationParams: options!.toMap(),
+        creationParamsCodec: const StandardMessageCodec(),
+      );
     } else if (Platform.isIOS) {
       return UiKitView(
           viewType: 'FlutterMapboxNavigationView',
+          layoutDirection: TextDirection.ltr,
           onPlatformViewCreated: _onPlatformViewCreated,
           creationParams: options!.toMap(),
-          creationParamsCodec: _decoder);
+          creationParamsCodec: const StandardMessageCodec());
     } else
-      return Column();
+      throw UnsupportedError('Unsupported platform view');
   }
 
   void _onPlatformViewCreated(int id) {
