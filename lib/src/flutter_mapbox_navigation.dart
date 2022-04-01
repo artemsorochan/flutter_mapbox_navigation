@@ -8,14 +8,15 @@ import 'package:flutter/widgets.dart';
 
 import 'models/models.dart';
 
+
 /// Turn-By-Turn Navigation Provider
 class MapBoxNavigation {
   factory MapBoxNavigation({ValueSetter<RouteEvent>? onRouteEvent}) {
     if (_instance == null) {
       final MethodChannel methodChannel =
-          const MethodChannel('flutter_mapbox_navigation/0');
+      const MethodChannel('flutter_mapbox_navigation');
       final EventChannel eventChannel =
-          const EventChannel('flutter_mapbox_navigation/events/0');
+      const EventChannel('flutter_mapbox_navigation/events');
       _instance =
           MapBoxNavigation.private(methodChannel, eventChannel, onRouteEvent);
     }

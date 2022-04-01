@@ -33,7 +33,7 @@ public class FlutterMapboxNavigationView : NavigationFactory, FlutterPlatformVie
 
         self.messenger = messenger
         self.channel = FlutterMethodChannel(name: "flutter_mapbox_navigation/\(viewId)", binaryMessenger: messenger)
-        self.eventChannel = FlutterEventChannel(name: "flutter_mapbox_navigation/events/\(viewId)", binaryMessenger: messenger)
+        self.eventChannel = FlutterEventChannel(name: "flutter_mapbox_navigation/\(viewId)/events", binaryMessenger: messenger)
 
         super.init()
 

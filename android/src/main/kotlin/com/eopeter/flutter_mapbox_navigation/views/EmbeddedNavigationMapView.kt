@@ -19,7 +19,7 @@ class EmbeddedNavigationMapView(context: Context, activity: Activity, binding: N
 
     override fun initFlutterChannelHandlers() {
         methodChannel = MethodChannel(messenger, "flutter_mapbox_navigation/${viewId}")
-        eventChannel = EventChannel(messenger, "flutter_mapbox_navigation/events/${viewId}")
+        eventChannel = EventChannel(messenger, "flutter_mapbox_navigation/${viewId}/events")
         super.initFlutterChannelHandlers()
     }
 

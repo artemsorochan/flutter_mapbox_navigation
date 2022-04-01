@@ -6,24 +6,24 @@ import MapboxCoreNavigation
 import MapboxNavigation
 
 public class SwiftFlutterMapboxNavigationPlugin: NavigationFactory, FlutterPlugin {
-
+    
     public static func register(with registrar: FlutterPluginRegistrar) {
-        let channel = FlutterMethodChannel(name: "flutter_mapbox_navigation/0", binaryMessenger: registrar.messenger())
-        let eventChannel = FlutterEventChannel(name: "flutter_mapbox_navigation/events/0", binaryMessenger: registrar.messenger())
+        let channel = FlutterMethodChannel(name: "flutter_mapbox_navigation", binaryMessenger: registrar.messenger())
+        let eventChannel = FlutterEventChannel(name: "flutter_mapbox_navigation/events", binaryMessenger: registrar.messenger())
         let instance = SwiftFlutterMapboxNavigationPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
-
+        
         eventChannel.setStreamHandler(instance)
-
+        
         let viewFactory = FlutterMapboxNavigationViewFactory(messenger: registrar.messenger())
         registrar.register(viewFactory, withId: "FlutterMapboxNavigationView")
-
+        
     }
-
+    
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-
+        
         let arguments = call.arguments as? NSDictionary
-
+        
         if(call.method == "getPlatformVersion")
         {
             result("iOS " + UIDevice.current.systemVersion)
