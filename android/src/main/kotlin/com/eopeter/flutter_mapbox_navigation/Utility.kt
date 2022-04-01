@@ -3,22 +3,29 @@ package com.eopeter.flutter_mapbox_navigation
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import android.content.Context.SENSOR_SERVICE
 import android.content.res.Configuration
 import android.content.res.Resources
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.getSystemService
+
 import com.eopeter.flutter_mapbox_navigation.databinding.NavigationActivityBinding
 import com.eopeter.flutter_mapbox_navigation.R
 import com.eopeter.flutter_mapbox_navigation.models.MapBoxEvents
 import com.eopeter.flutter_mapbox_navigation.models.MapBoxRouteProgressEvent
 import com.eopeter.flutter_mapbox_navigation.utilities.PluginUtilities
+
 import com.mapbox.api.directions.v5.DirectionsCriteria
 import com.mapbox.api.directions.v5.models.DirectionsRoute
 import com.mapbox.api.directions.v5.models.RouteOptions
-
 import com.mapbox.bindgen.Expected
 import com.mapbox.geojson.Point
 import com.mapbox.mapboxsdk.geometry.LatLng
@@ -42,6 +49,7 @@ import com.mapbox.navigation.core.formatter.MapboxDistanceFormatter
 import com.mapbox.navigation.core.replay.MapboxReplayer
 import com.mapbox.navigation.core.replay.ReplayLocationEngine
 import com.mapbox.navigation.core.replay.route.ReplayProgressObserver
+import com.mapbox.navigation.core.replay.route.ReplayRouteMapper
 import com.mapbox.navigation.core.trip.session.LocationMatcherResult
 import com.mapbox.navigation.core.trip.session.LocationObserver
 import com.mapbox.navigation.core.trip.session.RouteProgressObserver
@@ -53,6 +61,7 @@ import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 import com.mapbox.navigation.ui.maps.camera.lifecycle.NavigationBasicGesturesHandler
 import com.mapbox.navigation.ui.maps.camera.state.NavigationCameraState
+import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraStateTransition
 import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitionOptions
 import com.mapbox.navigation.ui.maps.location.NavigationLocationProvider
 import com.mapbox.navigation.ui.maps.route.arrow.api.MapboxRouteArrowApi
@@ -62,6 +71,8 @@ import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineApi
 import com.mapbox.navigation.ui.maps.route.line.api.MapboxRouteLineView
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineOptions
 import com.mapbox.navigation.ui.maps.route.line.model.RouteLine
+import com.mapbox.navigation.ui.maps.route.line.model.RouteLineColorResources
+import com.mapbox.navigation.ui.maps.route.line.model.RouteLineResources
 import com.mapbox.navigation.ui.tripprogress.api.MapboxTripProgressApi
 import com.mapbox.navigation.ui.tripprogress.model.DistanceRemainingFormatter
 import com.mapbox.navigation.ui.tripprogress.model.EstimatedTimeToArrivalFormatter
@@ -82,8 +93,251 @@ import io.flutter.plugin.common.MethodChannel
 import java.util.*
 
 
-open class TurnByTurn(ctx: Context, act: Activity, bind: NavigationActivityBinding, accessToken: String):  MethodChannel.MethodCallHandler, EventChannel.StreamHandler,
-    Application.ActivityLifecycleCallbacks {
+open class TurnByTurn(ctx: Context, act: Activity, bind: NavigationActivityBinding, accessToken: String):  MethodChannel.MethodCallHandler, EventChannel.StreamHandler, Application.ActivityLifecycleCallbacks,
+    SensorEventListener {
+
+    val context: Context = ctx
+    val activity: Activity = act
+    val token: String = accessToken
+    open var methodChannel: MethodChannel? = null
+    open var eventChannel: EventChannel? = null
+
+    //Config
+    var initialLatitude: Double? = null
+    var initialLongitude: Double? = null
+
+    val wayPoints: MutableList<Point> = mutableListOf()
+    var navigationMode =  DirectionsCriteria.PROFILE_DRIVING_TRAFFIC
+    var simulateRoute = false
+    var mapStyleUrlDay: String? = null
+    var mapStyleUrlNight: String? = null
+    var navigationLanguage = "en"
+    var navigationVoiceUnits = DirectionsCriteria.METRIC
+    var zoom = 15.0
+    var bearing = 0.0
+    var tilt = 0.0
+    var distanceRemaining: Float? = null
+    var durationRemaining: Double? = null
+
+    var alternatives = true
+
+    var allowsUTurnAtWayPoints = false
+    var enableRefresh = false
+    var voiceInstructionsEnabled = true
+    var bannerInstructionsEnabled = true
+    var longPressDestinationEnabled = true
+    var animateBuildRoute = true
+    var isOptimized = false
+
+    var originPoint: Point? = null
+    var destinationPoint: Point? = null
+
+    private var currentRoute: DirectionsRoute? = null
+    private var isDisposed = false
+    private var isRefreshing = false
+    private var isBuildingRoute = false
+    private var isNavigationInProgress = false
+    private var isNavigationCanceled = false
+
+    val BUTTON_ANIMATION_DURATION = 1500L
+
+    /**
+     * Debug tool used to play, pause and seek route progress events that can be used to produce mocked location updates along the route.
+     */
+    private val mapboxReplayer = MapboxReplayer()
+
+    /**
+     * Debug tool that mocks location updates with an input from the [mapboxReplayer].
+     */
+    private val replayLocationEngine = ReplayLocationEngine(mapboxReplayer)
+
+    /**
+     * Debug observer that makes sure the replayer has always an up-to-date information to generate mock updates.
+     */
+    private val replayProgressObserver = ReplayProgressObserver(mapboxReplayer)
+
+    /**
+     * Bindings to the example layout.
+     */
+    open val binding: NavigationActivityBinding = bind
+
+    /**
+     * Mapbox Maps entry point obtained from the [MapView].
+     * You need to get a new reference to this object whenever the [MapView] is recreated.
+     */
+    private lateinit var mapboxMap: MapboxMap
+
+    /**
+     * Mapbox Navigation entry point. There should only be one instance of this object for the app.
+     * You can use [MapboxNavigationProvider] to help create and obtain that instance.
+     */
+    private lateinit var mapboxNavigation: MapboxNavigation
+
+    /**
+     * Used to execute camera transitions based on the data generated by the [viewportDataSource].
+     * This includes transitions from route overview to route following and continuously updating the camera as the location changes.
+     */
+    private lateinit var navigationCamera: NavigationCamera
+
+    /**
+     * Produces the camera frames based on the location and routing data for the [navigationCamera] to execute.
+     */
+    private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
+
+    /*
+     * Below are generated camera padding values to ensure that the route fits well on screen while
+     * other elements are overlaid on top of the map (including instruction view, buttons, etc.)
+     */
+    private val pixelDensity = Resources.getSystem().displayMetrics.density
+    private val overviewPadding: EdgeInsets by lazy {
+        EdgeInsets(
+            140.0 * pixelDensity,
+            40.0 * pixelDensity,
+            120.0 * pixelDensity,
+            40.0 * pixelDensity
+        )
+    }
+    private val landscapeOverviewPadding: EdgeInsets by lazy {
+        EdgeInsets(
+            30.0 * pixelDensity,
+            380.0 * pixelDensity,
+            110.0 * pixelDensity,
+            20.0 * pixelDensity
+        )
+    }
+    private val followingPadding: EdgeInsets by lazy {
+        EdgeInsets(
+            180.0 * pixelDensity,
+            40.0 * pixelDensity,
+            150.0 * pixelDensity,
+            40.0 * pixelDensity
+        )
+    }
+    private val landscapeFollowingPadding: EdgeInsets by lazy {
+        EdgeInsets(
+            30.0 * pixelDensity,
+            380.0 * pixelDensity,
+            110.0 * pixelDensity,
+            40.0 * pixelDensity
+        )
+    }
+
+    /**
+     * Generates updates for the [MapboxManeuverView] to display the upcoming maneuver instructions
+     * and remaining distance to the maneuver point.
+     */
+    private lateinit var maneuverApi: MapboxManeuverApi
+
+    /**
+     * Generates updates for the [MapboxTripProgressView] that include remaining time and distance to the destination.
+     */
+    private lateinit var tripProgressApi: MapboxTripProgressApi
+
+    /**
+     * Generates updates for the [routeLineView] with the geometries and properties of the routes that should be drawn on the map.
+     */
+    private lateinit var routeLineApi: MapboxRouteLineApi
+
+    /**
+     * Draws route lines on the map based on the data from the [routeLineApi]
+     */
+    private lateinit var routeLineView: MapboxRouteLineView
+
+    /**
+     * Generates updates for the [routeArrowView] with the geometries and properties of maneuver arrows that should be drawn on the map.
+     */
+    private val routeArrowApi: MapboxRouteArrowApi = MapboxRouteArrowApi()
+
+    /**
+     * Draws maneuver arrows on the map based on the data [routeArrowApi].
+     */
+    private lateinit var routeArrowView: MapboxRouteArrowView
+
+    /**
+     * Stores and updates the state of whether the voice instructions should be played as they come or muted.
+     */
+    private var isVoiceInstructionsMuted = false
+        set(value) {
+            field = value
+            if (value) {
+                binding.soundButton.muteAndExtend(BUTTON_ANIMATION_DURATION)
+                voiceInstructionsPlayer.volume(SpeechVolume(0f))
+            } else {
+                binding.soundButton.unmuteAndExtend(BUTTON_ANIMATION_DURATION)
+                voiceInstructionsPlayer.volume(SpeechVolume(1f))
+            }
+        }
+
+    /**
+     * Extracts message that should be communicated to the driver about the upcoming maneuver.
+     * When possible, downloads a synthesized audio file that can be played back to the driver.
+     */
+    private lateinit var speechApi: MapboxSpeechApi
+
+    /**
+     * Plays the synthesized audio files with upcoming maneuver instructions
+     * or uses an on-device Text-To-Speech engine to communicate the message to the driver.
+     */
+    private lateinit var voiceInstructionsPlayer: MapboxVoiceInstructionsPlayer
+
+    /**
+     * Observes when a new voice instruction should be played.
+     */
+    private val voiceInstructionsObserver = VoiceInstructionsObserver { voiceInstructions ->
+        speechApi.generate(voiceInstructions, speechCallback)
+    }
+
+    /**
+     * Based on whether the synthesized audio file is available, the callback plays the file
+     * or uses the fall back which is played back using the on-device Text-To-Speech engine.
+     */
+    private val speechCallback =
+        MapboxNavigationConsumer<Expected<SpeechError, SpeechValue>> { expected ->
+            expected.fold(
+                { error ->
+                    // play the instruction via fallback text-to-speech engine
+                    voiceInstructionsPlayer.play(
+                        error.fallback,
+                        voiceInstructionsPlayerCallback
+                    )
+                },
+                { value ->
+                    // play the sound file from the external generator
+                    voiceInstructionsPlayer.play(
+                        value.announcement,
+                        voiceInstructionsPlayerCallback
+                    )
+                }
+            )
+        }
+
+    /**
+     * When a synthesized audio file was downloaded, this callback cleans up the disk after it was played.
+     */
+    private val voiceInstructionsPlayerCallback =
+        MapboxNavigationConsumer<SpeechAnnouncement> { value ->
+            // remove already consumed file to free-up space
+            speechApi.clean(value)
+        }
+
+    /**
+     * [NavigationLocationProvider] is a utility class that helps to provide location updates generated by the Navigation SDK
+     * to the Maps SDK in order to update the user location indicator on the map.
+     */
+    private val navigationLocationProvider = NavigationLocationProvider()
+
+    private val darkThreshold = 1.0f
+    private var lightValue = 1.1f
+
+    override fun onAccuracyChanged(p0: Sensor?, p1: Int) {}
+
+    override fun onSensorChanged(p0: SensorEvent?) {
+        // Sensor change value
+        val value = p0!!.values[0]
+        if (p0.sensor.type == Sensor.TYPE_LIGHT) {
+            lightValue = value;
+        }
+    }
 
     open fun initFlutterChannelHandlers() {
         methodChannel?.setMethodCallHandler(this)
@@ -94,7 +348,7 @@ open class TurnByTurn(ctx: Context, act: Activity, bind: NavigationActivityBindi
 
         mapboxMap = binding.mapView.getMapboxMap()
 
-        // initialize the location puck
+                // initialize the location puck
         binding.mapView.location.apply {
             this.locationPuck = LocationPuck2D(
                 bearingImage = ContextCompat.getDrawable(
@@ -114,7 +368,7 @@ open class TurnByTurn(ctx: Context, act: Activity, bind: NavigationActivityBindi
                 NavigationOptions.Builder(this.context)
                     .accessToken(token)
                     // comment out the location engine setting block to disable simulation
-                    .locationEngine(replayLocationEngine)
+                    //.locationEngine(replayLocationEngine)
                     .build()
             )
         }
@@ -222,9 +476,6 @@ open class TurnByTurn(ctx: Context, act: Activity, bind: NavigationActivityBindi
         }
 
         // initialize view interactions
-        binding.stop.setOnClickListener {
-            ////clearRouteAndStopNavigation()
-        }
         binding.recenter.setOnClickListener {
             navigationCamera.requestNavigationCameraToFollowing()
             binding.routeOverview.showTextAndExtend(BUTTON_ANIMATION_DURATION)
@@ -624,236 +875,6 @@ open class TurnByTurn(ctx: Context, act: Activity, bind: NavigationActivityBindi
     override fun onCancel(arguments: Any?) {
         FlutterMapboxNavigationPlugin.eventSink = null
     }
-
-    val context: Context = ctx
-    val activity: Activity = act
-    val token: String = accessToken
-    open var methodChannel: MethodChannel? = null
-    open var eventChannel: EventChannel? = null
-
-    //Config
-    var initialLatitude: Double? = null
-    var initialLongitude: Double? = null
-
-    val wayPoints: MutableList<Point> = mutableListOf()
-    var navigationMode =  DirectionsCriteria.PROFILE_DRIVING_TRAFFIC
-    var simulateRoute = false
-    var mapStyleUrlDay: String? = null
-    var mapStyleUrlNight: String? = null
-    var navigationLanguage = "en"
-    var navigationVoiceUnits = DirectionsCriteria.METRIC
-    var zoom = 15.0
-    var bearing = 0.0
-    var tilt = 0.0
-    var distanceRemaining: Float? = null
-    var durationRemaining: Double? = null
-
-    var alternatives = true
-
-    var allowsUTurnAtWayPoints = false
-    var enableRefresh = false
-    var voiceInstructionsEnabled = true
-    var bannerInstructionsEnabled = true
-    var longPressDestinationEnabled = true
-    var animateBuildRoute = true
-    var isOptimized = false
-
-    var originPoint: Point? = null
-    var destinationPoint: Point? = null
-
-    private var currentRoute: DirectionsRoute? = null
-    private var isDisposed = false
-    private var isRefreshing = false
-    private var isBuildingRoute = false
-    private var isNavigationInProgress = false
-    private var isNavigationCanceled = false
-
-    val BUTTON_ANIMATION_DURATION = 1500L
-
-    /**
-     * Debug tool used to play, pause and seek route progress events that can be used to produce mocked location updates along the route.
-     */
-    private val mapboxReplayer = MapboxReplayer()
-
-    /**
-     * Debug tool that mocks location updates with an input from the [mapboxReplayer].
-     */
-    private val replayLocationEngine = ReplayLocationEngine(mapboxReplayer)
-
-    /**
-     * Debug observer that makes sure the replayer has always an up-to-date information to generate mock updates.
-     */
-    private val replayProgressObserver = ReplayProgressObserver(mapboxReplayer)
-
-    /**
-     * Bindings to the example layout.
-     */
-    open val binding: NavigationActivityBinding = bind
-
-    /**
-     * Mapbox Maps entry point obtained from the [MapView].
-     * You need to get a new reference to this object whenever the [MapView] is recreated.
-     */
-    private lateinit var mapboxMap: MapboxMap
-
-    /**
-     * Mapbox Navigation entry point. There should only be one instance of this object for the app.
-     * You can use [MapboxNavigationProvider] to help create and obtain that instance.
-     */
-    private lateinit var mapboxNavigation: MapboxNavigation
-
-    /**
-     * Used to execute camera transitions based on the data generated by the [viewportDataSource].
-     * This includes transitions from route overview to route following and continuously updating the camera as the location changes.
-     */
-    private lateinit var navigationCamera: NavigationCamera
-
-    /**
-     * Produces the camera frames based on the location and routing data for the [navigationCamera] to execute.
-     */
-    private lateinit var viewportDataSource: MapboxNavigationViewportDataSource
-
-    /*
-     * Below are generated camera padding values to ensure that the route fits well on screen while
-     * other elements are overlaid on top of the map (including instruction view, buttons, etc.)
-     */
-    private val pixelDensity = Resources.getSystem().displayMetrics.density
-    private val overviewPadding: EdgeInsets by lazy {
-        EdgeInsets(
-            140.0 * pixelDensity,
-            40.0 * pixelDensity,
-            120.0 * pixelDensity,
-            40.0 * pixelDensity
-        )
-    }
-    private val landscapeOverviewPadding: EdgeInsets by lazy {
-        EdgeInsets(
-            30.0 * pixelDensity,
-            380.0 * pixelDensity,
-            110.0 * pixelDensity,
-            20.0 * pixelDensity
-        )
-    }
-    private val followingPadding: EdgeInsets by lazy {
-        EdgeInsets(
-            180.0 * pixelDensity,
-            40.0 * pixelDensity,
-            150.0 * pixelDensity,
-            40.0 * pixelDensity
-        )
-    }
-    private val landscapeFollowingPadding: EdgeInsets by lazy {
-        EdgeInsets(
-            30.0 * pixelDensity,
-            380.0 * pixelDensity,
-            110.0 * pixelDensity,
-            40.0 * pixelDensity
-        )
-    }
-
-    /**
-     * Generates updates for the [MapboxManeuverView] to display the upcoming maneuver instructions
-     * and remaining distance to the maneuver point.
-     */
-    private lateinit var maneuverApi: MapboxManeuverApi
-
-    /**
-     * Generates updates for the [MapboxTripProgressView] that include remaining time and distance to the destination.
-     */
-    private lateinit var tripProgressApi: MapboxTripProgressApi
-
-    /**
-     * Generates updates for the [routeLineView] with the geometries and properties of the routes that should be drawn on the map.
-     */
-    private lateinit var routeLineApi: MapboxRouteLineApi
-
-    /**
-     * Draws route lines on the map based on the data from the [routeLineApi]
-     */
-    private lateinit var routeLineView: MapboxRouteLineView
-
-    /**
-     * Generates updates for the [routeArrowView] with the geometries and properties of maneuver arrows that should be drawn on the map.
-     */
-    private val routeArrowApi: MapboxRouteArrowApi = MapboxRouteArrowApi()
-
-    /**
-     * Draws maneuver arrows on the map based on the data [routeArrowApi].
-     */
-    private lateinit var routeArrowView: MapboxRouteArrowView
-
-    /**
-     * Stores and updates the state of whether the voice instructions should be played as they come or muted.
-     */
-    private var isVoiceInstructionsMuted = false
-        set(value) {
-            field = value
-            if (value) {
-                binding.soundButton.muteAndExtend(BUTTON_ANIMATION_DURATION)
-                voiceInstructionsPlayer.volume(SpeechVolume(0f))
-            } else {
-                binding.soundButton.unmuteAndExtend(BUTTON_ANIMATION_DURATION)
-                voiceInstructionsPlayer.volume(SpeechVolume(1f))
-            }
-        }
-
-    /**
-     * Extracts message that should be communicated to the driver about the upcoming maneuver.
-     * When possible, downloads a synthesized audio file that can be played back to the driver.
-     */
-    private lateinit var speechApi: MapboxSpeechApi
-
-    /**
-     * Plays the synthesized audio files with upcoming maneuver instructions
-     * or uses an on-device Text-To-Speech engine to communicate the message to the driver.
-     */
-    private lateinit var voiceInstructionsPlayer: MapboxVoiceInstructionsPlayer
-
-    /**
-     * Observes when a new voice instruction should be played.
-     */
-    private val voiceInstructionsObserver = VoiceInstructionsObserver { voiceInstructions ->
-        speechApi.generate(voiceInstructions, speechCallback)
-    }
-
-    /**
-     * Based on whether the synthesized audio file is available, the callback plays the file
-     * or uses the fall back which is played back using the on-device Text-To-Speech engine.
-     */
-    private val speechCallback =
-        MapboxNavigationConsumer<Expected<SpeechError, SpeechValue>> { expected ->
-            expected.fold(
-                { error ->
-                    // play the instruction via fallback text-to-speech engine
-                    voiceInstructionsPlayer.play(
-                        error.fallback,
-                        voiceInstructionsPlayerCallback
-                    )
-                },
-                { value ->
-                    // play the sound file from the external generator
-                    voiceInstructionsPlayer.play(
-                        value.announcement,
-                        voiceInstructionsPlayerCallback
-                    )
-                }
-            )
-        }
-
-    /**
-     * When a synthesized audio file was downloaded, this callback cleans up the disk after it was played.
-     */
-    private val voiceInstructionsPlayerCallback =
-        MapboxNavigationConsumer<SpeechAnnouncement> { value ->
-            // remove already consumed file to free-up space
-            speechApi.clean(value)
-        }
-
-    /**
-     * [NavigationLocationProvider] is a utility class that helps to provide location updates generated by the Navigation SDK
-     * to the Maps SDK in order to update the user location indicator on the map.
-     */
-    private val navigationLocationProvider = NavigationLocationProvider()
 
     /**
      * Gets notified with location updates.
