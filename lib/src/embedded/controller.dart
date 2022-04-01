@@ -18,7 +18,7 @@ class MapBoxNavigationViewController {
     _methodChannel = new MethodChannel('flutter_mapbox_navigation/$id');
     _methodChannel.setMethodCallHandler(_handleMethod);
 
-    _eventChannel = EventChannel('flutter_mapbox_navigation/$id/events');
+    _eventChannel = EventChannel('flutter_mapbox_navigation/events/$id');
     _routeEventNotifier = eventNotifier;
   }
 

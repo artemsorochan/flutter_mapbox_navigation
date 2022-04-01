@@ -19,7 +19,7 @@ class EmbeddedNavigationMapView(context: Context, activity: Activity, binding: N
 
     override fun initFlutterChannelHandlers() {
         methodChannel = MethodChannel(messenger, "flutter_mapbox_navigation/${viewId}")
-        eventChannel = EventChannel(messenger, "flutter_mapbox_navigation/${viewId}/events")
+        eventChannel = EventChannel(messenger, "flutter_mapbox_navigation/events/${viewId}")
         super.initFlutterChannelHandlers()
     }
 
@@ -29,13 +29,13 @@ class EmbeddedNavigationMapView(context: Context, activity: Activity, binding: N
         initNavigation()
     }
     override fun getView(): View {
-        val view: View = binding.root;
-        return view;
+        val view: View = binding.root
+        return view
     }
 
     override fun dispose() {
-        unregisterObservers();
-        onDestroy();
+        unregisterObservers()
+        onDestroy()
     }
 
 }
