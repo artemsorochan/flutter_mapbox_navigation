@@ -29,13 +29,13 @@ class EmbeddedNavigationMapView(context: Context, activity: Activity, binding: N
         initNavigation()
     }
     override fun getView(): View {
-        val view: View = binding.root
-        return view
+        val view: View = binding.root;
+        return view;
     }
 
     override fun dispose() {
-        unregisterObservers()
-        onDestroy()
+        unregisterObservers();
+        onDestroy();
     }
 
 }
