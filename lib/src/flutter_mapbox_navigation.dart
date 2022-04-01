@@ -95,7 +95,7 @@ class MapBoxNavigation {
     _routeEventSubscription = _streamRouteEvent!.listen(_onProgressData);
     await _methodChannel
         .invokeMethod('startNavigation', args)
-        .then<String>((dynamic result) => result);
+        .then<String>((dynamic result) => result.toString());
   }
 
   ///Ends Navigation and Closes the Navigation View
