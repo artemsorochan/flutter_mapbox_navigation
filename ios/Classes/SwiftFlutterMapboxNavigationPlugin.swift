@@ -52,7 +52,7 @@ public class SwiftFlutterMapboxNavigationPlugin: NavigationFactory, FlutterPlugi
         {
             result("Method is Not Implemented");
         }
-
+        
     }
-
+    
 }

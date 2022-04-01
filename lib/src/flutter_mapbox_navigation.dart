@@ -61,11 +61,11 @@ class MapBoxNavigation {
   int legsCount = 0;
   Future startNavigation(
       {required List<WayPoint> wayPoints,
-      required MapBoxOptions options}) async {
+        required MapBoxOptions options}) async {
     assert(wayPoints.length > 1);
     if (Platform.isIOS && wayPoints.length > 3) {
       assert(options.mode != MapBoxNavigationMode.drivingWithTraffic,
-          "Error: Cannot use drivingWithTraffic Mode when you have more than 3 Stops");
+      "Error: Cannot use drivingWithTraffic Mode when you have more than 3 Stops");
     }
     List<Map<String, Object?>> pointList = [];
 
@@ -85,7 +85,7 @@ class MapBoxNavigation {
     }
     var i = 0;
     var wayPointMap =
-        Map.fromIterable(pointList, key: (e) => i++, value: (e) => e);
+    Map.fromIterable(pointList, key: (e) => i++, value: (e) => e);
 
     var args = options.toMap();
     args["wayPoints"] = wayPointMap;
@@ -108,7 +108,7 @@ class MapBoxNavigation {
   /// Will download the navigation engine and the user's region to allow offline routing
   Future<bool?> enableOfflineRouting() async {
     var success =
-        await _methodChannel.invokeMethod('enableOfflineRouting', null);
+    await _methodChannel.invokeMethod('enableOfflineRouting', null);
     return success;
   }
 
@@ -145,3 +145,4 @@ class MapBoxNavigation {
     return event;
   }
 }
+
