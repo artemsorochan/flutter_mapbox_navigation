@@ -611,6 +611,7 @@ class NavigationActivity : AppCompatActivity(), SensorEventListener {
 
     override fun onStart() {
         super.onStart()
+        binding.mapView.onStart()
 
         // register event listeners
         mapboxNavigation.registerRoutesObserver(routesObserver)
@@ -637,6 +638,7 @@ class NavigationActivity : AppCompatActivity(), SensorEventListener {
 
     override fun onStop() {
         super.onStop()
+        binding.mapView.onStop()
 
         // unregister event listeners to prevent leaks or unnecessary resource consumption
         mapboxNavigation.unregisterRoutesObserver(routesObserver)
@@ -646,8 +648,15 @@ class NavigationActivity : AppCompatActivity(), SensorEventListener {
         mapboxNavigation.unregisterRouteProgressObserver(replayProgressObserver)
     }
 
+    override fun onLowMemory() {
+        super.onLowMemory()
+        binding.mapView.onLowMemory()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        binding.mapView.onDestroy()
+
         MapboxNavigationProvider.destroy()
         mapboxReplayer.finish()
         maneuverApi.cancel()
