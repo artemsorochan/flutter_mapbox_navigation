@@ -623,8 +623,8 @@ open class TurnByTurn(ctx: Context, act: Activity, bind: NavigationActivityBindi
                     PluginUtilities.sendEvent(MapBoxEvents.ROUTE_BUILT)
                     // Draw the route on the map
                     mapboxNavigation.setRoutes(routes)
-                    // move the camera to overview when new route is available
-                    navigationCamera.requestNavigationCameraToOverview()
+                    // move the camera to following when new route is available
+                    navigationCamera.requestNavigationCameraToFollowing()
 
                     isBuildingRoute = false
 
@@ -715,7 +715,7 @@ open class TurnByTurn(ctx: Context, act: Activity, bind: NavigationActivityBindi
             binding.tripProgressCard.visibility = View.VISIBLE
 
             // move the camera to overview when new route is available
-            navigationCamera.requestNavigationCameraToOverview()
+            navigationCamera.requestNavigationCameraToFollowing()
             isNavigationInProgress = true
             PluginUtilities.sendEvent(MapBoxEvents.NAVIGATION_RUNNING)
         }
