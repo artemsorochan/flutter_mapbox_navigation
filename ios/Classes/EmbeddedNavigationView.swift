@@ -288,8 +288,8 @@ public class FlutterMapboxNavigationView : NavigationFactory, FlutterPlatformVie
         flutterViewController.addChild(_navigationViewController!)
 
         self.navigationMapView.addSubview(_navigationViewController!.view)
-        _navigationViewController!.view.translatesAutoresizingMaskIntoConstraints = false;
-        constraintsWithPaddingBetween(holderView: self.navigationMapView, topView: _navigationViewController!.view, padding: 0.0)        flutterViewController.didMove(toParent: flutterViewController)
+        _navigationViewController!.view.translatesAutoresizingMaskIntoConstraints = false
+        constraintsWithPaddingBetween(holderView: self.navigationMapView, topView: _navigationViewController!.view, padding: 0.0);        flutterViewController.didMove(toParent: flutterViewController)
         result(true)
 
     }
